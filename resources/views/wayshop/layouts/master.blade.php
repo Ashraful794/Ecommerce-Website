@@ -74,17 +74,45 @@
            url : '/get-product-price',
            data : {idSize:idSize},
            success:function(resp){
-            //    alert(resp);
+                alert(resp);
             var arr= resp.split('#');
             $("#getPrice").html("Product Price : PKR "+arr[0]);
             $('#price').val(arr[0]);
            },error:function(){
-               alert("Error");
+               //alert("Error");
            }
        });
       });
+    $("#billtoship").click(function(){
+      if(this.checked){
+        $("#shipping_name").val($("#billing_name").val());
+        $("#shipping_address").val($("#billing_address").val());
+        $("#shipping_city").val($("#billing_city").val());
+        $("#shipping_state").val($("#billing_state").val());
+        $("#shipping_country").val($("#billing_country").val());
+        $("#shipping_pincode").val($("#billing_pincode").val());
+        $("#shipping_mobile").val($("#billing_mobile").val());
+      }else{
+        $("#shipping_name").val('');
+        $("#shipping_address").val('');
+        $("#shipping_city").val('');
+        $("#shipping_state").val('');
+        $("#shipping_country").val('');
+        $("#shipping_pincode").val('');
+        $("#shipping_mobile").val('');
+      }
 
     });
+    });
+    function selectPaymentMethod(){
+      if($('.stripe').is(':checked') || $('.cod').is(':checked')){
+        //alert('checked');
+      }else{
+        alert('Please Select Payment Method');
+        return false;
+      }
+    }
+
     </script>
 </body>
 

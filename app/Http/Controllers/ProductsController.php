@@ -13,12 +13,18 @@ use App\ProductsImages;
 use App\Coupons;
 use DB;
 use Session;
+use Auth;
+use App\User;
+use App\Country;
+use App\DeliveryAddress;
+use App\Orders;
+use App\OrdersProduct;
+use Illuminate\Support\Facades\Mail;
 class ProductsController extends Controller
 {
     public function addProduct(Request $request){
         if($request->ismethod('post')){
             $data = $request->all();
-            // echo "<pre>";print_r($data);die;
             $product = new Products;
             $product->category_id = $data['category_id'];
             $product->name = $data['product_name'];
@@ -227,8 +233,7 @@ class ProductsController extends Controller
 
     }
     public function getprice(Request $request){
-         $data = $request->all();
-        //  echo "<pre>";print_r($data);die;
+        $data = $request->all();
         $proArr = explode("-",$data['idSize']);
         $proAttr = ProductsAttributes::where(['product_id'=>$proArr[0],'size'=>$proArr[1]])->first();
         echo $proAttr->price;
@@ -238,8 +243,10 @@ class ProductsController extends Controller
         Session::forget('CouponCode');
         $data = $request->all();
         // echo "<pre>";print_r($data);die;
-        if(empty($data['user_email'])){
+        if(empty(Auth::user()->email)){
             $data['user_email'] = '';
+        }else{
+            $data['user_email'] = Auth::user()->email;
         }
         $session_id = Session::get('session_id');
         if(empty($session_id)){
@@ -247,12 +254,19 @@ class ProductsController extends Controller
         Session::put('session_id',$session_id);
         }
         
-        $sizeArr = explode('-',$data['size']);
+        $sizeArr=explode('-',$data['size']);
         $countProducts = DB::table('cart')->where(['product_id'=>$data['product_id'],'product_color'=>$data['color'],'price'=>$data['price'],
-        'size'=>$sizeArr[1],'session_id'=>$session_id])->count();
+        'size'=>$sizeArr[0],'session_id'=>$session_id])->count();
+        $p_a=DB::table('products_attributes')->where(['product_id'=>$data['product_id'],'size'=>$sizeArr[1]])->first();
+        $p_stock=$p_a->stock;
         if($countProducts>0){
             return redirect()->back()->with('flash_message_error','Product already exists in cart');
-        }else{
+        }
+          elseif($p_stock<1)
+        {
+            return redirect()->back()->with('flash_message_error','Product Out of Stock');
+        }
+        else{
             DB::table('cart')->insert(['product_id'=>$data['product_id'],'product_name'=>$data['product_name'],
             'product_code'=>$data['product_code'],'product_color'=>$data['color'],'price'=>$data['price'],
             'size'=>$sizeArr[1],'quantity'=>$data['quantity'],'user_email'=>$data['user_email'],
@@ -261,12 +275,18 @@ class ProductsController extends Controller
         return redirect('/cart')->with('flash_message_success','Product has been added in cart');
     }
     public function cart(Request $request){
-        $session_id = Session::get('session_id');
-        $userCart = DB::table('cart')->where(['session_id'=>$session_id])->get();
+        if(Auth::check()){
+            $user_email = Auth::user()->email;
+            $userCart = DB::table('cart')->where(['user_email'=>$user_email])->get();
+        }else{
+            $session_id = Session::get('session_id');
+            $userCart = DB::table('cart')->where(['session_id'=>$session_id])->get();
+        }
         foreach($userCart as $key=>$products){
             $productDetails = Products::where(['id'=>$products->product_id])->first();
             $userCart[$key]->image = $productDetails->image;
-        }
+        
+    }
         // echo "<pre>";print_r($userCart);die;
         return view('wayshop.products.cart')->with(compact('userCart'));
     }
@@ -306,7 +326,14 @@ class ProductsController extends Controller
                 }
                 //Coupon is ready for discount
                 $session_id = Session::get('session_id');
-                $userCart = DB::table('cart')->where(['session_id'=>$session_id])->get();
+
+                if(Auth::check()){
+                    $user_email = Auth::user()->email;
+                    $userCart = DB::table('cart')->where(['user_email'=>$user_email])->get();
+                }else{
+                    $session_id = Session::get('session_id');
+                    $userCart = DB::table('cart')->where(['session_id'=>$session_id])->get();
+                }
                 $total_amount = 0;
                 foreach($userCart as $item){
                     $total_amount = $total_amount + ($item->price*$item->quantity);
@@ -316,12 +343,244 @@ class ProductsController extends Controller
                     $couponAmount = $couponDetails->amount;
                 }else{
                     $couponAmount = $total_amount * ($couponDetails->amount/100);
+                    $coupon = intval($couponAmount);
+                    // echo $coupon;die;
                 }
                 //Add Coupon code in session
-                Session::put('CouponAmount',$couponAmount);
+                Session::put('CouponAmount',$coupon);
                 Session::put('CouponCode',$data['coupon_code']);
                 return redirect()->back()->with('flash_message_success','Coupon Code is Successffully Applied.You are Availing Discount');
             }
         }
+    }
+    public function checkout(Request $request){
+        $user_id = Auth::user()->id;
+        $user_email = Auth::user()->email;
+        $shippingDetails = DeliveryAddress::where('user_id',$user_id)->first();
+        $userDetails = User::find($user_id);
+        $countries = Country::get();
+        //check if shipping address exists
+        $shippingCount = DeliveryAddress::where('user_id',$user_id)->count();
+        $shippingDetails = array();
+        if($shippingCount > 0){
+            $shippingDetails = DeliveryAddress::where('user_id',$user_id)->first();
+        }
+        //Update Cart Table With Email 
+        // $session_id = Session::get('session_id');
+        // DB::table('cart')->where(['session_id'=>$session_id])->update(['user_email'=>$user_email]);
+
+        if($request->isMethod('post')){
+            $data = $request->all();
+            // echo "<pre>";print_r($data);die;
+           //Update Users Details 
+           User::where('id',$user_id)->update(['name'=>$data['billing_name'],'address'=>$data['billing_address'],
+        'city'=>$data['billing_city'],'state'=>$data['billing_state'],'pincode'=>$data['billing_pincode'],
+        'country'=>$data['billing_country'],'mobile'=>$data['billing_mobile']]);
+        if($shippingCount > 0){
+        //update Shipping Address
+        DeliveryAddress::where('user_id',$user_id)->update(['name'=>$data['shipping_name'],'address'=>$data['shipping_address'],
+            'city'=>$data['shipping_city'],'state'=>$data['shipping_state'],'pincode'=>$data['shipping_pincode'],
+            'country'=>$data['shipping_country'],'mobile'=>$data['shipping_mobile']]);
+        }else{
+            //New Shipping Address
+            $shipping = new DeliveryAddress;
+            $shipping->user_id = $user_id;
+            $shipping->user_email = $user_email;
+            $shipping->name = $data['shipping_name'];
+            $shipping->address = $data['shipping_address'];
+            $shipping->city = $data['shipping_city'];
+            $shipping->state= $data['shipping_state'];
+            $shipping->country =$data['shipping_country'];
+            $shipping->pincode =$data['shipping_pincode'];
+            $shipping->mobile = $data['shipping_mobile'];
+             $shipping->save();
+        }
+        return redirect()->action('ProductsController@orderReview');
+        }
+        return view('wayshop.products.checkout')->with(compact('userDetails','countries','shippingDetails'));
+    }
+    public function orderReview(){
+        $user_id = Auth::user()->id;
+        $user_email = Auth::user()->email;
+        $shippingDetails = DeliveryAddress::where('user_id',$user_id)->first();
+        $userDetails = User::find($user_id);
+        $userCart = DB::table('cart')->where(['user_email'=>$user_email])->get();
+        foreach($userCart as $key=>$product){
+            $productDetails = Products::where('id',$product->product_id)->first();
+            $userCart[$key]->image = $productDetails->image;
+        }
+        return view('wayshop.products.order_review')->with(compact('userDetails','shippingDetails','userCart'));
+    }
+    public function placeOrder(Request $request){
+        if($request->isMethod('post')){
+            $user_id = Auth::user()->id;
+            $user_email = Auth::user()->email;
+            $data = $request->all();
+
+            //Get Shipping Details of Users
+            $shippingDetails = DeliveryAddress::where(['user_email'=>$user_email])->first();
+            if(empty(Session::get('CouponCode'))){
+                $coupon_code = 'Not Used';
+            }else{
+                $coupon_code = Session::get('CouponCode');
+            }
+            if(empty(Session::get('CouponAmount'))){
+                $coupon_amount = '0';
+            }else{
+                $coupon_amount = Session::get('CouponAmount');
+            }
+
+
+            // echo "<pre>";print_r($data);
+            $order = new Orders;
+            $order->user_id = $user_id;
+            $order->user_email = $user_email;
+            $order->name = $shippingDetails->name;
+            $order->address = $shippingDetails->address;
+            $order->city = $shippingDetails->city;
+            $order->state = $shippingDetails->state;
+            $order->pincode = $shippingDetails->pincode;
+            $order->country = $shippingDetails->country;
+            $order->mobile = $shippingDetails->mobile;
+            $order->coupon_code = $coupon_code;
+            $order->coupon_amount = $coupon_amount;
+            $order->order_status = "New";
+            $order->payment_method = $data['payment_method'];
+            $order->grand_total = $data['grand_total'];
+            $order->Save();
+
+            $order_id = DB::getPdo()->lastinsertID();
+
+            $catProducts = DB::table('cart')->where(['user_email'=>$user_email])->get();
+
+            foreach($catProducts as $pro){
+                $cartPro = new OrdersProduct;
+                $cartPro->order_id = $order_id;
+                $cartPro->user_id = $user_id;
+                $cartPro->product_id = $pro->product_id;
+                $cartPro->product_code = $pro->product_code;
+                $cartPro->product_name = $pro->product_name;
+                $cartPro->product_color = $pro->product_color;
+                $cartPro->product_size = $pro->size;
+                $cartPro->product_price = $pro->price;
+                $cartPro->product_qty = $pro->quantity;
+                $cartPro->save();
+
+                $p_id=$pro->product_id;
+                $p_size=$pro->size;    
+                $p_atr = DB::table('products_attributes')->where(['product_id'=>$p_id])->where(['size'=>$p_size])->first();
+
+                $stock=$p_atr->stock-$pro->quantity;
+                DB::table('products_attributes')->where(['product_id'=>$p_id])->where(['size'=>$p_size])->update(['stock' => $stock]);
+
+            }
+            Session::put('order_id',$order_id);
+            Session::put('grand_total',$data['grand_total']);
+            if($data['payment_method']=="cod"){
+                 
+                $productDetails=Orders::with('orders')->where('id',$order_id)->first();
+                $productDetails=json_decode(json_encode($productDetails),true);
+                $userDetails=User::where('id',$user_id)->first();
+                $userDetails=json_decode(json_encode($userDetails),true);
+
+
+                //send email for order
+                $email=$user_email;
+                $messageData=[
+                    'email'=>$email,
+                    'name'=>$shippingDetails->name,
+                    'order_id'=>$order_id,
+                    'productDetails'=>$productDetails,
+                    'userDetails'=>$userDetails,
+                ];
+                Mail::send('wayshop.email.cod',$messageData,function($message) use($email){
+                    $message->to($email)->subject('Your Wayshop Order is Placed');
+                });
+                return redirect('/thanks');
+            }else{
+                return redirect('/stripe');
+            }
+            
+        }
+    }
+    public function thanks(){
+        $user_email = Auth::user()->email;
+        DB::table('cart')->where('user_email',$user_email)->delete();
+        return view('wayshop.orders.thanks');
+    }
+    public function stripe(Request $request){
+        $user_email = Auth::user()->email;
+        DB::table('cart')->where('user_email',$user_email)->delete();
+        if($request->isMethod('post')){
+            $data = $request->all();
+            // echo "<pre>";print_r($data);die;
+            // Set your secret key. Remember to switch to your live secret key in production!
+            // See your keys here: https://dashboard.stripe.com/account/apikeys
+            \Stripe\Stripe::setApiKey('sk_test_51GwS3xB1wNQgE8MUayKkrOU9tbz60jr72vgzGmW7aSTl2CRbqfxfKNdbWLy8vmfscZYWWvOgq5uKIrmERsnaAbz1009lm69hKI');
+
+            $token = $_POST['stripeToken'];
+            $charge = \Stripe\charge::Create([
+                
+              'amount' => $request->input('total_amount')*100,
+              'currency' => 'pkr',
+              'description' => $request->input('name'), 
+              'source' => $token,
+            ]);
+        //    dd($charge);
+            return redirect()->back()->with('flash_message_success','Your Payment Successfully Done!');
+        }
+        return view('wayshop.orders.stripe');
+    }
+    public function userOrders(){
+        $user_id = Auth::user()->id;
+        $orders = Orders::with('orders')->where('user_id',$user_id)->orderBy('id','DESC')->get();
+
+        // echo "<pre>";print_r($orders);die;
+        return view('wayshop.orders.user_orders')->with(compact('orders'));
+    }
+    public function userOrderDetails($order_id){
+        $orderDetails = Orders::with('orders')->where('id',$order_id)->first();
+        $user_id = $orderDetails->user_id;
+        $userDetails = User::where('id',$user_id)->first();
+        return view('wayshop.orders.user_order_details')->with(compact('orderDetails','userDetails'));
+    }
+    public function viewOrders(){
+        $orders = Orders::with('orders')->where('order_status','!=','Delivered')->orderBy('id','DESC')->get();
+        return view('admin.orders.view_orders')->with(compact('orders'));
+    }
+    public function viewOrderDetails($order_id){
+        $orderDetails = Orders::with('orders')->where('id',$order_id)->first();
+        $user_id = $orderDetails->user_id;
+        $userDetails = User::where('id',$user_id)->first();
+        return view('admin.orders.order_details')->with(compact('orderDetails','userDetails'));
+    }
+    public function updateOrderStatus(Request $request){
+        if($request->isMethod('post')){
+            $data = $request->all();
+
+        }
+        Orders::where('id',$data['order_id'])->update(['order_status'=>$data['order_status']]);
+        return redirect()->back()->with('flash_message_success','Order Status has been updated successfully!');
+    }
+    public function viewCustomers(){
+        $userDetails =  User::get();
+        return view('admin.users.customer')->with(compact('userDetails'));
+    }
+    public function updateCustomerStatus(Request $request,$id=null){
+        $data = $request->all();
+        User::where('id',$data['id'])->update(['status'=>$data['status']]);
+    }
+    public function deleteCustomer($id=null){
+        User::where(['id'=>$id])->delete();
+        Alert::success('Deleted Successfully', 'Success');
+        return redirect()->back();
+    }
+
+    public function orderinvoice($order_id)
+    {
+        $OrderDetails=Orders::with('orders')->where('id',$order_id)->first();
+        $user_id=$OrderDetails->user_id;
+        $userDetails=User::where('id',$user_id)->first();
+        return view('admin.orders.order_invoice')->with(compact('OrderDetails','userDetails'));
     }
 }

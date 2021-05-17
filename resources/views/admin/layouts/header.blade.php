@@ -266,10 +266,9 @@
                     <img src="{{asset('admin-assets/dist/img/avatar5.png')}}" class="img-circle" width="45" height="45" alt="user"></a>
                     <ul class="dropdown-menu" >
                        <li>
-                          <a href="profile.html">
+                          <a href="{{url('/admin/user-profile')}}">
                           <i class="fa fa-user"></i> User Profile</a>
                        </li>
-                       <li><a href="#"><i class="fa fa-inbox"></i> Inbox</a></li>
                        <li><a href="{{url('/logout')}}">
                           <i class="fa fa-sign-out"></i> Signout</a>
                        </li>

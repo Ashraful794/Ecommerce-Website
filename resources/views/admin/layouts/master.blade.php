@@ -51,9 +51,7 @@
    </head>
    <body class="hold-transition sidebar-mini">
            <!--preloader-->
-      <div id="preloader">
-            <div id="status"></div>
-         </div>
+
        <div class="wrapper">
          @include('admin.layouts.header')
          @include('admin.layouts.sidebar')
@@ -87,6 +85,11 @@
       <script src="{{asset('admin-assets/plugins/fastclick/fastclick.min.js')}}" type="text/javascript"></script>
       <!-- CRMadmin frame -->
       <script src="{{asset('admin-assets/dist/js/custom.js')}}" type="text/javascript"></script>
+      
+      <!-- Modal js -->
+      <script src="{{asset('admin-assets/plugins/modals/classie.js')}}" type="text/javascript"></script>
+      <script src="{{asset('admin-assets/plugins/modals/modalEffects.js')}}" type="text/javascript"></script>
+      
       <!-- End Core Plugins
          =====================================================================-->
       <!-- Start Page Lavel Plugins
@@ -115,6 +118,42 @@
          
          });
          $(this).closest('td').attr('id');
+         //Update Customer Status
+         $(".CustomerStatus").change(function(){
+            var id = $(this).attr('rel');
+            if($(this).prop("checked")==true){
+               $.ajax({
+                  headers: {
+                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                  },
+                  type : 'post',
+                  url : '/admin/update-customer-status',
+                  data : {status:'1',id:id},
+                  success:function(data){
+                     $("#message_success").show();
+                     setTimeout(function() { $("#message_success").fadeOut('slow'); }, 2000);
+                  },error:function(){
+                     //alert("Error");
+                  }
+               });
+  
+            }else{
+              $.ajax({
+                  headers: {
+                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                  },
+                  type : 'post',
+                  url : '/admin/update-customer-status',
+                  data : {status:'0',id:id},
+                  success:function(resp){
+                     $("#message_error").show();
+                     setTimeout(function() { $("#message_error").fadeOut('slow'); }, 2000);
+                  },error:function(){
+                     //alert("Error");
+                  }
+               });
+            }
+           });
          //Update Product Status
          $(".ProductStatus").change(function(){
           var id = $(this).attr('rel');

@@ -52,6 +52,24 @@
                            <li><a href="{{url('admin/add-coupon')}}">Add Coupon</a></li>
                         <li><a href="{{url('admin/view-coupons')}}">View Coupons</a></li>
                         </ul>
+                     </li> 
+                     <li class="treeview">
+                        <a href="{{url('admin/orders')}}">
+                        <i class="pe-7s-cart"></i><span>Orders</span>
+                        <span class="pull-right-container">
+                        <i class="fa fa-angle-left pull-right"></i>
+                        </span>
+                        </a>
+                        
+                     </li> 
+                     <li class="treeview">
+                        <a href="{{url('admin/customers')}}">
+                        <i class="fa fa-users"></i><span>Customers</span>
+                        <span class="pull-right-container">
+                        <i class="fa fa-angle-left pull-right"></i>
+                        </span>
+                        </a>
+                        
                      </li>                      
                       
                    </ul>

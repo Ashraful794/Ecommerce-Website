@@ -69,7 +69,11 @@
                     <div class="right-product-box">
                         <div class="product-item-filter row">
                             <div class="col-12 col-sm-8 text-center text-sm-left">
-                                
+                                @if(empty($product_search))
+                                <h2>Feature Products</h2>
+                                @else 
+                                <h2>Filter Products</h2>
+                                @endif
                             </div>
                             <div class="col-12 col-sm-4 text-center text-sm-right">
                                 <ul class="nav nav-tabs ml-auto">
@@ -85,6 +89,32 @@
                             <div class="tab-content">
                                 <div role="tabpanel" class="tab-pane fade show active" id="grid-view">
                                     <div class="row">
+                                        @if(!empty($product_search))
+                                        @foreach($searchProducts as $product)
+                                        <div class="col-sm-6 col-md-6 col-lg-4 col-xl-4">
+                                            <div class="products-single fix">
+                                                <div class="box-img-hover">
+                                                    <div class="type-lb">
+                                                        <p class="sale">Sale</p>
+                                                    </div>
+                                                <img src="uploads/products/{{$product->image}}" class="img-fluid" alt="Image">
+                                                    <div class="mask-icon">
+                                                        <ul>
+                                                            <li><a href="#" data-toggle="tooltip" data-placement="right" title="View"><i class="fas fa-eye"></i></a></li>
+                                                            <li><a href="#" data-toggle="tooltip" data-placement="right" title="Compare"><i class="fas fa-sync-alt"></i></a></li>
+                                                            <li><a href="#" data-toggle="tooltip" data-placement="right" title="Add to Wishlist"><i class="far fa-heart"></i></a></li>
+                                                        </ul>
+                                                    <a class="cart" href="{{url('/products/'.$product->id)}}">Detail Page</a>
+                                                    </div>
+                                                </div>
+                                                <div class="why-text">
+                                                    <h4>{{$product->description}}</h4>
+                                                    <h5>{{$product->price}}</h5>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        @endforeach
+                                        @else
                                         @foreach($products as $product)
                                         <div class="col-sm-6 col-md-6 col-lg-4 col-xl-4">
                                             <div class="products-single fix">
@@ -109,13 +139,20 @@
                                             </div>
                                         </div>
                                         @endforeach
+                                        @endif
                                         
                                     </div>
                                 </div>
                                 
                             </div>
                         </div>
+                            @if(empty($product_search))
+                            {{ $products->links()}}
+                            @else
+                            <div style="display: none;">{{ $products->links()}}</div>
+                            @endif
 
+                            
                     </div>
                 </div>
             </div>

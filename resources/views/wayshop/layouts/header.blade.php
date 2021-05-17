@@ -46,8 +46,13 @@
                 </div>
                 <div class="our-link">
                     <ul>
-                        <li><a href="#"><i class="fa fa-cart-plus"></i> Cart</a></li>
-                        <li><a href="{{url('/login-register')}}"><i class="fa fa-user"></i> Login</a></li>
+                        <li><a href="{{url('/cart')}}"><i class="fa fa-cart-plus"></i> Cart</a></li>
+                        @if(empty(Auth::check()))
+                        <li><a href="{{url('/login-register')}}"><i class="fa fa-lock"></i> Login</a></li>
+                        @else
+                        <li><a href="{{url('/account')}}"><i class="fa fa-user"></i> Account</a></li>
+                        <li><a href="{{url('/user-logout')}}"><i class="fa fa-lock"></i> Logout</a></li>
+                        @endif
                     </ul>
                 </div>
             </div>
@@ -75,25 +80,22 @@
                 <ul class="nav navbar-nav ml-auto" data-in="fadeInDown" data-out="fadeOutUp">
                     <li class="nav-item active"><a class="nav-link" href="{{url('/')}}">Home</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{url('#')}}">About Us</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{url('#')}}">Contact Us</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{url('/contact_us')}}">Contact Us</a></li>
                 </ul>
             </div>
             <!-- /.navbar-collapse -->
 
             <!-- Start Atribute Navigation -->
             <div class="attr-nav">
-                <ul>
-                    <li class="search"><a href="#"><i class="fa fa-search"></i></a></li>
-                    <li class="side-menu"><a href="#">
-                    <i class="fa fa-shopping-bag"></i>
-                        <span class="badge">3</span>
-                </a></li>
-                </ul>
+                <form action="{{url('/')}}" method="GET">
+                    <input type="text" placeholder="Search Keyword" name="search" value="{{isset($product_search) ? $product_search: ''}}">
+                    <button type="submit">Go</button>
+                </form>
             </div>
             <!-- End Atribute Navigation -->
         </div>
         <!-- Start Side Menu -->
-        <div class="side">
+       {{-- <div class="side">
             <a href="#" class="close-side"><i class="fa fa-times"></i></a>
             <li class="cart-box">
                 <ul class="cart-list">
@@ -118,7 +120,7 @@
                     </li>
                 </ul>
             </li>
-        </div>
+        </div>--}}
         <!-- End Side Menu -->
     </nav>
     <!-- End Navigation -->
@@ -126,13 +128,5 @@
 <!-- End Main Top -->
 
 <!-- Start Top Search -->
-<div class="top-search">
-    <div class="container">
-        <div class="input-group">
-            <span class="input-group-addon"><i class="fa fa-search"></i></span>
-            <input type="text" class="form-control" placeholder="Search">
-            <span class="input-group-addon close-search"><i class="fa fa-times"></i></span>
-        </div>
-    </div>
-</div>
+
 <!-- End Top Search -->
